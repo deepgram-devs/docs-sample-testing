@@ -1,0 +1,97 @@
+# Go SDK Testing Configuration
+# Example configuration for Go SDK major upgrades
+
+# HAS NOT BE USED YET. MIGHT NOT WORK AS EXPECTED
+
+language:
+  name: "go"
+  display_name: "Go"
+  version: "1.18+"
+
+# Code block identification in MDX files
+code_blocks:
+  identifiers:
+    - "```go"
+    - "```golang"
+  extract_patterns:
+    - "go"
+    - "Go"
+    - "Golang"
+
+# SDK configuration
+sdk:
+  current_version: "v2" # Future version
+  repository_path: "../deepgram-go-sdk"
+  source_path: "."
+  module_name: "github.com/deepgram/deepgram-go-sdk/v2"
+
+# Import patterns to identify SDK usage
+import_patterns:
+  current_version:
+    - "github.com/deepgram/deepgram-go-sdk/v2/pkg/client"
+    - "github.com/deepgram/deepgram-go-sdk/v2/pkg/api"
+  deprecated_patterns:
+    - "github.com/deepgram/deepgram-go-sdk/pkg/deepgram"
+    - "github.com/deepgram/deepgram-go-sdk" # v1
+
+# API method patterns (example)
+api_patterns:
+  current_version:
+    transcription:
+      - "client.Listen().Transcribe().File"
+      - "client.Listen().Transcribe().URL"
+    text_to_speech:
+      - "client.Speak().Generate"
+
+  deprecated_patterns:
+    - "deepgram.Transcribe"
+    - "deepgram.TTS"
+
+# Client usage patterns
+client_patterns:
+  correct:
+    - "client.New(apiKey)"
+    - "client.NewWithOptions"
+  incorrect:
+    - "deepgram.New" # old pattern
+
+# Authentication patterns
+auth_patterns:
+  current:
+    - 'client.New(os.Getenv("DEEPGRAM_API_KEY"))'
+    - "client.NewWithOptions(client.Options{APIKey: apiKey})"
+  deprecated:
+    - "deepgram.NewClient"
+
+# Test execution configuration
+execution:
+  interpreter: "go"
+  commands:
+    - "go mod init test"
+    - "go mod tidy"
+    - "go run main.go"
+
+# Sample categorization
+sample_types:
+  - name: "simple"
+    pattern: "func main"
+    priority: "critical"
+  - name: "struct_methods"
+    pattern: "type.*struct"
+    priority: "high"
+  - name: "goroutines"
+    pattern: "go func|goroutine"
+    priority: "medium"
+
+# Validation rules
+validation_rules:
+  - name: "no_v1_imports"
+    check: "deepgram-go-sdk/pkg"
+    error: "Using v1 import paths"
+    severity: "error"
+
+  - name: "use_v2_client"
+    check: "client\\.New"
+    error: "Should use v2 client constructor"
+    severity: "error"
+    expected: true

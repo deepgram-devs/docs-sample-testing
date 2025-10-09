@@ -1,0 +1,55 @@
+# Deepgram SDK Documentation Testing Framework Configuration
+# Global settings that apply across all languages
+
+framework:
+  name: "Deepgram SDK Documentation Sample Testing"
+  version: "1.0.0"
+
+# Documentation source configuration
+documentation:
+  base_path: "${DOCS_PATH:-../deepgram-fern-config}" # Set via --docs-path or environment variable
+  pages_path: "fern/pages"
+  file_patterns:
+    - "**/*.mdx"
+  exclude_paths:
+    - "**/node_modules/**"
+    - "**/dist/**"
+
+# Test execution settings
+execution:
+  timeout_seconds: 10
+  parallel_tests: true
+  max_concurrent: 5
+
+# Mock/Test data configuration
+mocking:
+  api_key_placeholder: "test_api_key_for_validation"
+  create_mock_audio: true
+  mock_network_calls: true
+
+# Reporting configuration
+reporting:
+  output_formats:
+    - "markdown"
+    - "json"
+    - "html"
+  include_code_snippets: true
+  max_snippet_length: 200
+
+# Priority levels for different types of samples
+priority_levels:
+  critical:
+    - "client_initialization"
+    - "basic_transcription"
+    - "basic_tts"
+    - "authentication"
+  high:
+    - "streaming"
+    - "advanced_features"
+    - "configuration"
+  medium:
+    - "integrations"
+    - "examples"
+  low:
+    - "legacy_patterns"
+    - "deprecated_features"

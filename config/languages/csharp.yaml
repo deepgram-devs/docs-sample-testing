@@ -1,0 +1,184 @@
+# C#/.NET SDK Testing Configuration
+# Configuration for .NET SDK major version upgrades
+
+# HAS NOT BE USED YET. MIGHT NOT WORK AS EXPECTED
+
+language:
+  name: "csharp"
+  display_name: "C#/.NET"
+  version: ".NET 6.0+"
+
+# Code block identification in MDX files
+code_blocks:
+  identifiers:
+    - "```csharp"
+    - "```cs"
+    - "```c#"
+    - "```dotnet"
+  extract_patterns:
+    - "csharp"
+    - "C#"
+    - "c#"
+    - "dotnet"
+    - ".NET"
+
+# SDK configuration
+sdk:
+  current_version: "v3" # Example future version
+  repository_path: "../deepgram-dotnet-sdk"
+  source_path: "src"
+  package_name: "Deepgram"
+
+# Import patterns to identify SDK usage
+import_patterns:
+  current_version:
+    - "using Deepgram;"
+    - "using Deepgram.Models;"
+    - "using Deepgram.Clients;"
+  deprecated_patterns:
+    - "using DeepgramSDK;"
+    - "using Deepgram.SDK;"
+
+# API method patterns
+api_patterns:
+  current_version:
+    transcription:
+      - "client.Listen.Transcribe.File"
+      - "client.Listen.Transcribe.Url"
+      - "await client.Listen.Transcribe.FileAsync"
+      - "await client.Listen.Transcribe.UrlAsync"
+    text_to_speech:
+      - "client.Speak.Generate"
+      - "await client.Speak.GenerateAsync"
+    text_intelligence:
+      - "client.Read.Analyze"
+      - "await client.Read.AnalyzeAsync"
+    voice_agent:
+      - "client.Agent.Connect"
+
+  deprecated_patterns:
+    - ".Transcribe("
+    - ".Synthesize("
+    - "deepgram.transcription"
+
+# Client usage patterns
+client_patterns:
+  synchronous:
+    correct:
+      - "new DeepgramClient(apiKey)"
+      - "new DeepgramClient()"
+      - "var client = new DeepgramClient"
+    incorrect:
+      - "new Deepgram(" # old pattern
+
+  asynchronous:
+    correct:
+      - "await client.Listen.Transcribe"
+      - "await client.Speak.Generate"
+    incorrect:
+      - "client.Listen.Transcribe.Wait()" # blocking async
+
+# Authentication patterns
+auth_patterns:
+  current:
+    - "new DeepgramClient(apiKey)"
+    - 'new DeepgramClient(Environment.GetEnvironmentVariable("DEEPGRAM_API_KEY"))'
+    - "new DeepgramClient()" # auto env detection
+  deprecated:
+    - "new Deepgram(apiKey)"
+    - "Deepgram.Initialize"
+
+# Required migration elements
+migration_requirements:
+  migration_guide_comment:
+    required: true
+    pattern: "// For help migrating to the new .NET SDK"
+    full_text: |
+      // For help migrating to the new .NET SDK, check out our migration guide:
+      // https://github.com/deepgram/deepgram-dotnet-sdk/blob/main/MIGRATION.md
+
+# Test execution configuration
+execution:
+  interpreter: "dotnet"
+  commands:
+    - "dotnet new console --force"
+    - "dotnet add package Deepgram"
+    - "dotnet run"
+  environment_variables:
+    - "DEEPGRAM_API_KEY=test_key"
+    - "DEEPGRAM_TOKEN=test_token"
+
+# Dependencies that might be required
+common_dependencies:
+  - "System"
+  - "System.Threading.Tasks"
+  - "System.IO"
+  - "Newtonsoft.Json"
+  - "Microsoft.Extensions.Configuration"
+
+# Sample categorization
+sample_types:
+  - name: "sync"
+    pattern: "^(?!.*async)(?!.*await).*Main"
+    priority: "critical"
+  - name: "async"
+    pattern: "async|await|Task"
+    priority: "critical"
+  - name: "console"
+    pattern: "Console\\.WriteLine|Console\\.Write"
+    priority: "high"
+  - name: "web"
+    pattern: "Controller|WebApi|HttpClient"
+    priority: "medium"
+
+# Validation rules
+validation_rules:
+  - name: "no_old_imports"
+    check: "using DeepgramSDK"
+    error: "Using deprecated import pattern"
+    severity: "error"
+
+  - name: "proper_async_usage"
+    check: "\\.Wait\\(\\)|Result"
+    error: "Blocking async calls detected"
+    severity: "warning"
+
+  - name: "migration_guide_present"
+    check: "migration guide"
+    error: "Missing migration guide comment"
+    severity: "warning"
+
+  - name: "current_namespace"
+    check: "using Deepgram;"
+    error: "Should use current Deepgram namespace"
+    severity: "error"
+    expected: true
+
+  - name: "proper_client_usage"
+    check: "new DeepgramClient"
+    error: "Should use DeepgramClient constructor"
+    severity: "error"
+    expected: true
+
+# .NET specific patterns
+dotnet_patterns:
+  project_file_template: |
+    <Project Sdk="Microsoft.NET.Sdk">
+      <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <Nullable>enable</Nullable>
+      </PropertyGroup>
+      <ItemGroup>
+        <PackageReference Include="Deepgram" Version="*" />
+      </ItemGroup>
+    </Project>
+
+  using_statements:
+    - "using System;"
+    - "using System.Threading.Tasks;"
+    - "using Deepgram;"
+
+  main_method_patterns:
+    sync: "static void Main(string[] args)"
+    async: "static async Task Main(string[] args)"

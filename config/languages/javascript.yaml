@@ -1,0 +1,105 @@
+# JavaScript/TypeScript SDK Testing Configuration
+# Example configuration for  JavaScript SDK major upgrades
+
+# HAS NOT BE USED YET. MIGHT NOT WORK AS EXPECTED
+
+language:
+  name: "javascript"
+  display_name: "JavaScript/TypeScript"
+  version: "Node.js 16+"
+
+# Code block identification in MDX files
+code_blocks:
+  identifiers:
+    - "```javascript"
+    - "```js"
+    - "```typescript"
+    - "```ts"
+  extract_patterns:
+    - "javascript"
+    - "JavaScript"
+    - "typescript"
+    - "TypeScript"
+    - "Node.js"
+
+# SDK configuration
+sdk:
+  current_version: "v4" # Future version
+  repository_path: "../deepgram-js-sdk"
+  source_path: "src"
+  package_name: "@deepgram/sdk"
+
+# Import patterns to identify SDK usage
+import_patterns:
+  current_version:
+    - "import { createClient } from '@deepgram/sdk'"
+    - "import { DeepgramClient } from '@deepgram/sdk'"
+  deprecated_patterns:
+    - "const { Deepgram } = require('@deepgram/sdk')"
+    - "import Deepgram from '@deepgram/sdk'"
+
+# API method patterns (example - would match actual v4 patterns)
+api_patterns:
+  current_version:
+    transcription:
+      - "client.listen.transcribe.file"
+      - "client.listen.transcribe.url"
+    text_to_speech:
+      - "client.speak.generate"
+    voice_agent:
+      - "client.agent.connect"
+
+  deprecated_patterns:
+    - "deepgram.transcription."
+    - "deepgram.projects."
+
+# Client usage patterns
+client_patterns:
+  correct:
+    - "const client = createClient({ key: 'API_KEY' })"
+    - "const client = createClient()" # using env vars
+  incorrect:
+    - "const deepgram = new Deepgram('API_KEY')"
+
+# Authentication patterns
+auth_patterns:
+  current:
+    - "createClient({ key: process.env.DEEPGRAM_API_KEY })"
+    - "createClient()" # auto env detection
+  deprecated:
+    - "new Deepgram(apiKey)"
+
+# Test execution configuration
+execution:
+  interpreter: "node"
+  setup_commands:
+    - "process.env.DEEPGRAM_API_KEY = 'test_key'"
+  package_manager: "npm" # or yarn, pnpm
+
+# Sample categorization
+sample_types:
+  - name: "commonjs"
+    pattern: "require\\("
+    priority: "high"
+  - name: "esmodules"
+    pattern: "import.*from"
+    priority: "critical"
+  - name: "typescript"
+    pattern: "interface |type "
+    priority: "high"
+  - name: "streaming"
+    pattern: "WebSocket|socket"
+    priority: "high"
+
+# Validation rules
+validation_rules:
+  - name: "no_old_imports"
+    check: "new Deepgram"
+    error: "Using deprecated constructor pattern"
+    severity: "error"
+
+  - name: "use_create_client"
+    check: "createClient"
+    error: "Should use createClient function"
+    severity: "error"
+    expected: true

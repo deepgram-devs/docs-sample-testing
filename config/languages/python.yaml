@@ -1,0 +1,142 @@
+# Python SDK Testing Configuration
+
+language:
+  name: "python"
+  display_name: "Python"
+  version: "3.8+"
+
+# Code block identification in MDX files
+code_blocks:
+  identifiers:
+    - "```python"
+    - "```py"
+  extract_patterns:
+    - "python"
+    - "Python"
+    - "Threaded"
+    - "Async"
+    - "AsyncIO"
+
+# SDK configuration
+sdk:
+  current_version: "v5"
+  repository_path: "${PYTHON_SDK_PATH:-../deepgram-python-sdk}" # Set via environment variable
+  source_path: "src"
+
+# Import patterns to identify SDK usage
+import_patterns:
+  current_version:
+    - "from deepgram import DeepgramClient"
+    - "from deepgram import AsyncDeepgramClient"
+    - "from deepgram import ClientOptionsFromEnv"
+  deprecated_patterns:
+    - "from deepgram import Deepgram"
+    - "from deepgram_sdk import Deepgram"
+
+# API method patterns to validate
+api_patterns:
+  current_version:
+    transcription:
+      - "client.listen.v1.media.transcribe_file"
+      - "client.listen.v1.media.transcribe_url"
+    text_to_speech:
+      - "client.speak.v1.audio.generate"
+    text_intelligence:
+      - "client.read.v1.text.analyze"
+    voice_agent:
+      - "client.agent.v1.websocket"
+
+  deprecated_patterns:
+    - ".transcribe("
+    - ".synthesize("
+
+# Client usage patterns
+client_patterns:
+  synchronous:
+    correct:
+      - "client = DeepgramClient()"
+      - "response = client.listen.v1"
+    incorrect:
+      - "client = DeepgramClient()" # with await usage
+
+  asynchronous:
+    correct:
+      - "client = AsyncDeepgramClient()"
+      - "response = await client.listen.v1"
+    incorrect:
+      - "client = DeepgramClient()" # with await usage
+
+# Authentication patterns
+auth_patterns:
+  current:
+    - "DeepgramClient(api_key=..."
+    - "DeepgramClient()" # using env vars
+    - "os.environ['DEEPGRAM_API_KEY']"
+    - "os.getenv('DEEPGRAM_API_KEY')"
+  deprecated:
+    - "Deepgram(api_key)"
+
+# Required migration elements
+migration_requirements:
+  migration_guide_comment:
+    required: true
+    pattern: "# For help migrating to the new Python SDK"
+    full_text: |
+      # For help migrating to the new Python SDK, check out our migration guide:
+      # https://github.com/deepgram/deepgram-python-sdk/blob/main/docs/Migrating-v3-to-v5.md
+
+# Test execution configuration
+execution:
+  interpreter: "python3"
+  setup_commands:
+    - "import sys"
+    - "sys.path.insert(0, '{sdk_path}')"
+  environment_variables:
+    - "DEEPGRAM_API_KEY=test_key"
+    - "DEEPGRAM_TOKEN=test_token"
+
+# Dependencies that might be required
+common_dependencies:
+  - "os"
+  - "asyncio"
+  - "httpx"
+  - "dotenv" # python-dotenv
+  - "boto3" # for AWS examples
+
+# Sample categorization
+sample_types:
+  - name: "sync"
+    pattern: "def main():"
+    priority: "critical"
+  - name: "async"
+    pattern: "async def|await "
+    priority: "critical"
+  - name: "streaming"
+    pattern: "websocket|WebSocket"
+    priority: "high"
+  - name: "integration"
+    pattern: "boto3|aws|s3"
+    priority: "medium"
+
+# Validation rules
+validation_rules:
+  - name: "no_old_imports"
+    check: "from deepgram import Deepgram"
+    error: "Using deprecated import pattern"
+    severity: "error"
+
+  - name: "async_client_consistency"
+    check: "DeepgramClient.*await"
+    error: "Using sync client with async patterns"
+    severity: "error"
+
+  - name: "migration_guide_present"
+    check: "migration guide"
+    error: "Missing migration guide comment"
+    severity: "warning"
+
+  - name: "v1_api_usage"
+    check: "\\.v1\\."
+    error: "Should use v1 API methods"
+    severity: "error"
+    expected: true
