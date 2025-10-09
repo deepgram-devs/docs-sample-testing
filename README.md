@@ -50,7 +50,7 @@ pipenv run python scripts/run_tests.py --language python --docs-path /path/to/do
    pipenv run python scripts/run_tests.py --language python --docs-path /path/to/docs
    ```
 
-## Recommended Cursor Directory Structure
+## 💡 Recommended Cursor Directory Structure
 
 Based on which SDK code samples you want to test and update you can use the following structure in Cursor.
 
@@ -157,20 +157,7 @@ The framework is designed for easy expansion to other languages:
 - `python-samples/python_samples_to_fix.md` - Complete record of Python SDK v5 migration work
 
 
-
-## Quick Test
-
-
-
-## Configuration Files
-
-- `config/framework_config.yaml` - Global settings
-- `config/languages/python.yaml` - Python-specific configuration
-- `config/languages/javascript.yaml` - JavaScript configuration (placeholder)
-- `config/languages/go.yaml` - Go configuration (placeholder)
-- `config/languages/csharp.yaml` - C# configuration (placeholder)
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Missing Dependencies
 ```bash
