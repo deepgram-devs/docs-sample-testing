@@ -134,14 +134,14 @@ The framework is designed for easy expansion to other languages:
 
 ## 📊 Reports Generated
 
-### JSON Report (`test-runs/python_test_report.json`)
+### JSON Report (`test-runs/{language}_test_report.json`)
 - Machine-readable results
 - Detailed error information
 - Execution times and metadata
 
-### Markdown Report (`test-runs/python_test_report.md`)
+### Markdown Report (`test-runs/{language}_test_report.md`)
 - Human-readable summary
-- Organized by sample type (sync/async)
+- Organized by sample type
 - Prioritized recommendations
 
 ## 🎯 Best Practices Learned
