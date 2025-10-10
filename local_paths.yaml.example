@@ -1,0 +1,18 @@
+# Local Paths Configuration
+# Copy this file to 'local_paths.yaml' and customize with your actual paths
+# This file is gitignored so each developer can have their own setup
+
+# Path to your documentation repository
+docs_path: "/path/to/your/deepgram-docs"
+
+# Paths to SDK repositories for testing
+sdk_paths:
+  python: "/path/to/your/deepgram-python-sdk"
+  javascript: "/path/to/your/deepgram-js-sdk"
+  go: "/path/to/your/deepgram-go-sdk"
+  csharp: "/path/to/your/deepgram-dotnet-sdk"
+
+# Example for your setup:
+# docs_path: "/Users/johnvajda/Documents/Github/deepgram-repos/deepgram-docs"
+# sdk_paths:
+#   python: "/Users/johnvajda/Documents/Github/deepgram-repos/deepgram-python-sdk"

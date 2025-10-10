@@ -30,6 +30,7 @@ class TestRunner:
         self.config_dir = config_dir
         self.framework_config = self._load_framework_config()
         self.supported_languages = self._discover_supported_languages()
+        self.local_paths = self._load_local_paths()
 
     def _load_framework_config(self) -> Dict[str, Any]:
         """Load the main framework configuration"""
@@ -49,18 +50,34 @@ class TestRunner:
 
         return languages
 
-    def _load_language_config(self, language: str) -> Dict[str, Any]:
+    def _load_local_paths(self) -> Dict[str, Any]:
+        """Load local paths configuration if it exists"""
+        local_config_path = Path(__file__).parent.parent / "local_paths.yaml"
+        if local_config_path.exists():
+            with open(local_config_path, 'r') as f:
+                return yaml.safe_load(f)
+        return {}
+
+    def _load_language_config(self, language: str, sdk_path: str = None) -> Dict[str, Any]:
         """Load configuration for a specific language"""
         config_path = self.config_dir / "languages" / f"{language}.yaml"
         if not config_path.exists():
             raise FileNotFoundError(f"No configuration found for language: {language}")
 
         with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+
+        # Override SDK path if provided
+        if sdk_path and 'sdk' in config:
+            config['sdk']['repository_path'] = sdk_path
+
+        return config
 
     def _get_executor_for_language(self, language: str) -> BaseExecutor:
         """Dynamically load the executor for a given language"""
-        language_config = self._load_language_config(language)
+        # Get SDK path from local config if available
+        sdk_path = self.local_paths.get('sdk_paths', {}).get(language)
+        language_config = self._load_language_config(language, sdk_path)
 
         # Import the language-specific executor
         executor_path = Path(__file__).parent.parent / "languages" / language / "executor.py"
@@ -265,25 +282,37 @@ def main():
     parser = argparse.ArgumentParser(description="Test SDK documentation code samples")
     parser.add_argument("--language", help="Language to test (python, javascript, go, etc.)")
     parser.add_argument("--all-languages", action="store_true", help="Test all supported languages")
-    parser.add_argument("--docs-path", required=True, help="Path to documentation directory")
+    parser.add_argument("--docs-path", help="Path to documentation directory (overrides local config)")
     parser.add_argument("--output-dir", default="test-runs", help="Output directory for reports")
     parser.add_argument("--config-dir", default="config", help="Configuration directory")
 
     args = parser.parse_args()
 
     config_dir = Path(args.config_dir)
-    docs_path = Path(args.docs_path)
     output_dir = Path(args.output_dir)
 
     if not config_dir.exists():
         print(f"❌ Configuration directory not found: {config_dir}")
         return 1
 
+    runner = TestRunner(config_dir)
+
+    # Determine docs path: command line arg takes precedence, then local config
+    docs_path = None
+    if args.docs_path:
+        docs_path = Path(args.docs_path)
+    elif runner.local_paths.get('docs_path'):
+        docs_path = Path(runner.local_paths['docs_path'])
+    else:
+        print("❌ No documentation path specified!")
+        print("   Either:")
+        print("   1. Use --docs-path argument")
+        print("   2. Create local_paths.yaml (copy from local_paths.yaml.example)")
+        return 1
+
     if not docs_path.exists():
         print(f"❌ Documentation directory not found: {docs_path}")
         return 1
-
-    runner = TestRunner(config_dir)
 
     # Determine which languages to test
     if args.all_languages:

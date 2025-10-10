@@ -23,31 +23,30 @@ pipenv install
 ```bash
 # Test the framework setup
 pipenv run python scripts/run_tests.py --help
-
-```bash
-# Run tests on Python samples (if you have the SDKs set up)
-pipenv run python scripts/run_tests.py --language python --docs-path /path/to/docs
 ```
 
-1. **Configure SDK and Documentation Paths**
+## 🚀 Quick Start
 
-   You have two options for configuration:
+### Configure Your SDK & Docs Paths
 
-   ### Option A: Environment Variables (Recommended)
    ```bash
-   # Set paths to your SDK repositories and documentation
-   export PYTHON_SDK_PATH="/path/to/deepgram-python-sdk"
-   export DOCS_PATH="/path/to/deepgram-fern-config"
-
-   # Or create a .env file:
-   echo "PYTHON_SDK_PATH=/path/to/deepgram-python-sdk" > .env
-   echo "DOCS_PATH=/path/to/deepgram-fern-config" >> .env
+   # Copy the example configuration
+   cp local_paths.yaml.example local_paths.yaml
    ```
+Then edit `local_paths.yaml` with your actual paths to the SDKs and Docs directories.
 
-   ### Option B: Command Line Arguments
+
+### Commands
+
    ```bash
-   # Use --docs-path flag when running tests
-   pipenv run python scripts/run_tests.py --language python --docs-path /path/to/docs
+   # Test Python samples
+   pipenv run python scripts/run_tests.py --language python
+
+   # Test all supported languages
+   pipenv run python scripts/run_tests.py --all-languages
+
+   # Override paths if needed (optional)
+   pipenv run python scripts/run_tests.py --language python --docs-path /different/path
    ```
 
 ## 💡 Recommended Cursor Directory Structure
@@ -155,7 +154,6 @@ The framework is designed for easy expansion to other languages:
 ## 📚 Documentation Files Preserved
 
 - `python-samples/python_samples_to_fix.md` - Complete record of Python SDK v5 migration work
-
 
 ## 🐛 Troubleshooting
 
