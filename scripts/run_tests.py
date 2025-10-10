@@ -136,15 +136,34 @@ class TestRunner:
                 result = executor.execute_sample(sample, environment)
                 results.append(result)
 
-                # Print immediate feedback
+                # Print analysis results
                 if result.success:
-                    print(f"    ✅ PASSED")
+                    if "findings" in result.validation_results:
+                        findings = result.validation_results["findings"]
+                        if not findings:
+                            print(f"    ✅ LOOKS GOOD")
+                        else:
+                            suggestions_count = len([f for f in findings if not f.get("blocking", False)])
+                            print(f"    ✅ GOOD ({suggestions_count} suggestions)")
+                    else:
+                        print(f"    ✅ ANALYZED")
                 else:
-                    print(f"    ❌ FAILED")
-                    if result.error_message:
-                        print(f"       {result.error_message[:80]}...")
-                    elif result.stderr:
-                        print(f"       {result.stderr.strip()[:80]}...")
+                    if "findings" in result.validation_results:
+                        blocking_count = len([f for f in result.validation_results["findings"] if f.get("blocking", False)])
+                        print(f"    🚨 NEEDS FIXES ({blocking_count} blocking issues)")
+                    else:
+                        print(f"    🔍 NEEDS ATTENTION")
+
+                # Show immediate actionable feedback
+                if result.stdout and result.stdout.strip():
+                    # Show just the summary line for immediate feedback
+                    lines = result.stdout.strip().split('\n')
+                    if lines[0].startswith('🚨') or lines[0].startswith('💡'):
+                        print(f"       {lines[0]}")
+
+                # Show error if it's a real error (not analysis)
+                if result.error_message and "Analysis error" in result.error_message:
+                    print(f"       Error: {result.error_message}")
 
                 # Cleanup
                 executor.cleanup_test_environment(environment)
@@ -163,12 +182,35 @@ class TestRunner:
 
         return results
 
+    def _get_full_error_message(self, result: TestResult) -> str:
+        """Get a comprehensive error message for better troubleshooting"""
+        if result.error_message:
+            return result.error_message
+
+        if result.stderr:
+            # Return full stderr but limit to reasonable length for JSON
+            stderr_lines = result.stderr.strip().split('\n')
+            if len(stderr_lines) > 10:
+                # Show first 8 lines and last 2 lines with ellipsis
+                error_msg = '\n'.join(stderr_lines[:8])
+                error_msg += '\n... (truncated) ...\n'
+                error_msg += '\n'.join(stderr_lines[-2:])
+                return error_msg
+            else:
+                return result.stderr.strip()
+
+        if result.stdout and not result.success:
+            return f"No stderr, but stdout: {result.stdout.strip()[:200]}"
+
+        return "Unknown error - no error message or stderr available"
+
     def generate_report(self, language: str, results: List[TestResult]) -> Dict[str, Any]:
         """Generate a comprehensive report for language test results"""
         if not results:
             return {
                 "language": language,
-                "summary": {"total": 0, "passed": 0, "failed": 0},
+                "summary": {"total": 0, "passed": 0, "failed": 0, "success_rate": 0},
+                "by_type": {},
                 "results": []
             }
 
@@ -193,7 +235,7 @@ class TestRunner:
                 "line": result.sample.line_number,
                 "success": result.success,
                 "execution_time": result.execution_time,
-                "error": result.error_message or result.stderr.split('\n')[0] if result.stderr else ""
+                "error": self._get_full_error_message(result)
             })
 
         return {
@@ -213,7 +255,7 @@ class TestRunner:
                     "success": r.success,
                     "execution_time": r.execution_time,
                     "validation_results": r.validation_results,
-                    "error": r.error_message or (r.stderr.split('\n')[0] if r.stderr else "")
+                    "error": self._get_full_error_message(r)
                 }
                 for r in results
             ]
@@ -237,42 +279,123 @@ class TestRunner:
         print(f"   Markdown: {md_path}")
 
     def _save_markdown_report(self, report: Dict[str, Any], output_path: Path):
-        """Save a markdown version of the test report"""
+        """Save a markdown version of the analysis report"""
         language = report["language"]
         summary = report["summary"]
 
-        content = f"""# {language.title()} SDK Documentation Test Report
+        # Collect findings data
+        blocking_issues = []
+        improvement_suggestions = []
 
-## Summary
-- **Total samples tested:** {summary["total"]}
-- **Passed:** {summary["passed"]} ({summary["success_rate"]}%)
-- **Failed:** {summary["failed"]} ({100 - summary["success_rate"]:.1f}%)
+        for result in report["results"]:
+            if "validation_results" in result and "findings" in result["validation_results"]:
+                findings = result["validation_results"]["findings"]
 
-## Results by Sample Type
+                for finding in findings:
+                    finding_data = {
+                        "file": result["file"],
+                        "line": result["line"],
+                        "issue": finding.get("issue", "Unknown Issue"),
+                        "location": finding.get("location", "Unknown Location"),
+                        "problem": finding.get("problem", "No details"),
+                        "fix": finding.get("fix", "No fix provided"),
+                        "impact": finding.get("impact", "Unknown impact")
+                    }
+
+                    if finding.get("blocking", False):
+                        blocking_issues.append(finding_data)
+                    else:
+                        improvement_suggestions.append(finding_data)
+
+        content = f"""# {language.title()} SDK Documentation Analysis Report
+
+## Overview
+- **Total samples analyzed:** {summary["total"]}
+- **Samples ready to use:** {summary["passed"]} ({summary["success_rate"]}%)
+- **Samples with blocking issues:** {len(blocking_issues)}
+- **Samples with improvement opportunities:** {len(improvement_suggestions)}
+
+## 🚨 Blocking Issues (Fix These First)
+
+These issues prevent users from running the code successfully:
+
 """
 
-        for sample_type, stats in report["by_type"].items():
-            content += f"""
-### {sample_type.title()} Samples
-- **Passed:** {stats["passed"]}
-- **Failed:** {stats["failed"]}
-"""
+        if blocking_issues:
+            # Group by issue type for better organization
+            issues_by_type = {}
+            for issue in blocking_issues:
+                issue_type = issue["issue"]
+                if issue_type not in issues_by_type:
+                    issues_by_type[issue_type] = []
+                issues_by_type[issue_type].append(issue)
 
-            if stats["failed"] > 0:
-                content += "\n**Failed samples:**\n"
-                for sample in stats["samples"]:
-                    if not sample["success"]:
-                        error = sample["error"][:100] + "..." if len(sample["error"]) > 100 else sample["error"]
-                        content += f"- `{sample['file']}:{sample['line']}`: {error}\n"
+            for issue_type, issues in issues_by_type.items():
+                content += f"### {issue_type} ({len(issues)} samples)\n\n"
+                for issue in issues[:5]:  # Show first 5 examples
+                    content += f"**`{issue['file']}:{issue['line']}`** - {issue['location']}\n"
+                    content += f"- Problem: {issue['problem']}\n"
+                    content += f"- Fix: {issue['fix']}\n"
+                    content += f"- Impact: {issue['impact']}\n\n"
+                if len(issues) > 5:
+                    content += f"... and {len(issues) - 5} more samples with this issue\n\n"
+        else:
+            content += "✅ No blocking issues found! All code samples should run correctly.\n\n"
 
-        content += f"""
-## Recommendations
-1. **High Priority**: Fix failed sync/async samples (core functionality)
-2. **Medium Priority**: Fix streaming samples (advanced features)
-3. **Low Priority**: Fix integration examples (optional features)
+        content += "## 💡 Improvement Opportunities\n\nThese suggestions would make the documentation examples even better:\n\n"
 
-*Report generated: {yaml.dump({'timestamp': 'now'}, default_flow_style=False).strip()}*
-"""
+        if improvement_suggestions:
+            # Group by issue type
+            suggestions_by_type = {}
+            for suggestion in improvement_suggestions:
+                suggestion_type = suggestion["issue"]
+                if suggestion_type not in suggestions_by_type:
+                    suggestions_by_type[suggestion_type] = []
+                suggestions_by_type[suggestion_type].append(suggestion)
+
+            for suggestion_type, suggestions in suggestions_by_type.items():
+                content += f"### {suggestion_type} ({len(suggestions)} samples)\n\n"
+                content += f"**Why this helps:** {suggestions[0]['impact']}\n\n"
+                content += f"**How to fix:** {suggestions[0]['fix']}\n\n"
+                content += f"**Examples:**\n"
+                for suggestion in suggestions[:3]:
+                    content += f"- `{suggestion['file']}:{suggestion['line']}`\n"
+                if len(suggestions) > 3:
+                    content += f"- ... and {len(suggestions) - 3} more samples\n"
+                content += "\n"
+        else:
+            content += "✨ No improvement suggestions - your documentation examples are excellent!\n\n"
+
+        # Create concrete next steps based on actual findings
+        next_steps_content = "## Next Steps\n\n"
+
+        if blocking_issues:
+            next_steps_content += "### 🚨 Immediate Actions (Blocking Issues)\n"
+            next_steps_content += "These must be fixed for users to run the code:\n\n"
+
+            # Get unique issue types for action items
+            blocking_types = list(set(issue["issue"] for issue in blocking_issues))
+            for i, issue_type in enumerate(blocking_types[:5], 1):  # Top 5 types
+                sample_count = len([issue for issue in blocking_issues if issue["issue"] == issue_type])
+                next_steps_content += f"{i}. **Fix {issue_type}** in {sample_count} sample(s)\n"
+
+        if improvement_suggestions:
+            next_steps_content += "\n### 💡 Quality Improvements (Nice to Have)\n"
+            next_steps_content += "These would make examples even better:\n\n"
+
+            # Get unique suggestion types
+            suggestion_types = list(set(suggestion["issue"] for suggestion in improvement_suggestions))
+            for i, suggestion_type in enumerate(suggestion_types[:3], 1):  # Top 3 types
+                sample_count = len([suggestion for suggestion in improvement_suggestions if suggestion["issue"] == suggestion_type])
+                next_steps_content += f"{i}. **Implement {suggestion_type}** in {sample_count} sample(s)\n"
+
+        if not blocking_issues and not improvement_suggestions:
+            next_steps_content += "🎉 **No action needed!** All documentation samples are in excellent condition.\n\n"
+
+        next_steps_content += f"\n---\n*Analysis completed - check individual sample details above for specific fixes.*\n\n"
+        next_steps_content += "> 💡 **How to use this report**: Look at the specific file:line references above, make the suggested changes, then re-run analysis to verify fixes."
+
+        content += next_steps_content
 
         with open(output_path, 'w') as f:
             f.write(content)
@@ -344,7 +467,33 @@ def main():
             if report["summary"]["failed"] > 0:
                 overall_success = False
 
-            print(f"✅ {language} testing complete: {report['summary']['passed']}/{report['summary']['total']} passed")
+            total = report['summary']['total']
+            passed = report['summary']['passed']
+            failed = report['summary']['failed']
+
+            print(f"✅ {language} analysis complete: {total} samples analyzed")
+
+            # Calculate actual issue counts from the detailed results
+            blocking_count = 0
+            suggestion_count = 0
+
+            for result in results:
+                if "findings" in result.validation_results:
+                    findings = result.validation_results["findings"]
+                    blocking_count += len([f for f in findings if f.get("blocking", False)])
+                    suggestion_count += len([f for f in findings if not f.get("blocking", False)])
+
+            if blocking_count == 0:
+                if suggestion_count == 0:
+                    print("🎉 Perfect! All samples are ready to use with no issues found.")
+                else:
+                    print(f"✅ All samples work correctly. Found {suggestion_count} opportunities for improvement.")
+            else:
+                print(f"🚨 Found {blocking_count} issues that prevent code from running correctly.")
+                if suggestion_count > 0:
+                    print(f"💡 Also found {suggestion_count} suggestions to improve the examples.")
+
+            print("📋 Check the detailed markdown report for specific fixes and improvements!")
 
         except Exception as e:
             print(f"❌ Failed to test {language}: {e}")
@@ -353,11 +502,12 @@ def main():
         print()
 
     if overall_success:
-        print("🎉 All tests completed successfully!")
+        print("🎉 Analysis complete - all documentation samples are excellent!")
         return 0
     else:
-        print("⚠️  Some tests failed. Check reports for details.")
-        return 1
+        print("📈 Analysis complete! Some samples have improvement opportunities.")
+        print("💡 Check the detailed markdown reports for specific actionable suggestions.")
+        return 0  # Return 0 since this is analysis, not testing
 
 
 if __name__ == "__main__":

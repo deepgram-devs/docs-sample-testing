@@ -1,17 +1,19 @@
 # Deepgram SDK Code Sample Documentation Testing Framework
 
-A language-agnostic framework for testing code samples in SDK documentation during major version upgrades.
+A language-agnostic framework for analyzing code samples in SDK documentation to find outdated patterns, missing imports, and improvement opportunities.
 
 ## 🎯 What This Framework Does
 
 - **Extracts code samples** from MDX documentation files
-- **Executes samples** in isolated environments with proper SDK dependencies
-- **Validates syntax** and import correctness
-- **Handles blocking operations** (input(), infinite loops, etc.)
-- **Generates detailed reports** with actionable insights
-- **Scales to hundreds of samples** across multiple documentation files
+- **Analyzes content patterns** to find outdated SDK usage and common issues
+- **Identifies blocking problems** like missing imports, wrong API patterns, syntax errors
+- **Suggests specific improvements** with exact fixes and file:line references
+- **Generates actionable reports** that help documentation teams prioritize fixes
+- **Scales to hundreds of samples** across multiple documentation files without execution complexity
 
 ## 🚀 Quick Start
+
+### Clone & Install
 
 ```bash
 # Clone and setup
@@ -25,8 +27,6 @@ pipenv install
 pipenv run python scripts/run_tests.py --help
 ```
 
-## 🚀 Quick Start
-
 ### Configure Your SDK & Docs Paths
 
    ```bash
@@ -36,7 +36,7 @@ pipenv run python scripts/run_tests.py --help
 Then edit `local_paths.yaml` with your actual paths to the SDKs and Docs directories.
 
 
-### Commands
+### Run Commands
 
    ```bash
    # Test Python samples
@@ -48,6 +48,14 @@ Then edit `local_paths.yaml` with your actual paths to the SDKs and Docs directo
    # Override paths if needed (optional)
    pipenv run python scripts/run_tests.py --language python --docs-path /different/path
    ```
+
+### A Typical Testing Workflow
+
+1. **Run Analysis**: `pipenv run python scripts/run_tests.py --language python`
+2. **Review Markdown Report**: Open `test-runs/python_test_report.md` for detailed findings
+3. **Fix Blocking Issues First**: Address high-impact problems that break user experience
+4. **Implement Improvements**: Apply suggestions to enhance documentation quality
+5. **Re-run Analysis**: Verify fixes and track progress
 
 ## 💡 Recommended Cursor Directory Structure
 
@@ -63,9 +71,71 @@ your-cursor-workspace/
 └── deepgram-dotnet-sdk/          # .NET SDK
 ```
 
-## 📁 Directory Structure
+## 📋 How to Use the Results
 
+### Understanding the Analysis Output
+
+**Terminal Output:**
+
+![image](./images/terminal.png)
+
+## 📊 Reports Generated
+
+### JSON Report (`test-runs/{language}_test_report.json`)
+- Machine-readable analysis results
+- Complete findings data for further processing
+- Sample metadata and validation results
+
+### Markdown Report (`test-runs/{language}_test_report.md`)
+- **Human-readable analysis summary**
+- **Organized by issue type** (Outdated SDK Import, Missing Import, etc.)
+- **Specific file:line references** for each issue
+- **Exact fix instructions** for every problem found
+- **Prioritized next steps** based on blocking vs. improvement issues
+- **Perfect for documentation teams** to systematically address issues
+
+**Example Report Structure:**
+
+```markdown
+## 🚨 Blocking Issues (Fix These First)
+### Outdated SDK Import (v2/v3) (15 samples)
+**`migrating-from-assembly-ai.mdx:42`** - Import statement
+- Problem: Uses completely outdated import: from deepgram import Deepgram
+- Fix: Change to: from deepgram import DeepgramClient
+- Impact: Users will get ImportError - this class no longer exists
 ```
+
+## 🔧 How It Works
+
+### 1. **Configuration**
+- **Global settings** in `config/framework_config.yaml` (file patterns, output formats)
+- **Language-specific rules** in `config/languages/{lang}.yaml` (SDK patterns, known issues)
+
+### 2. **Sample Extraction**
+- Parses MDX files to find code blocks by language tag (`\`\`\`python`, `\`\`\`javascript`, etc.)
+- Preserves original code content for accurate pattern analysis
+- Identifies different sample types and contexts
+
+### 3. **Content Analysis**
+- **Pattern matching** for outdated SDK imports and API usage
+- **Missing dependency detection** for common libraries and modules
+- **Best practice analysis** for API key handling, error patterns, etc.
+- **No code execution** - pure static analysis for reliability
+
+### 4. **Actionable Reporting**
+- **Blocking issues**: Problems that prevent users from running code
+- **Improvement suggestions**: Ways to enhance documentation quality
+- **Specific fixes**: Exact changes needed with file:line references
+- **Prioritized recommendations**: Focus on high-impact issues first
+
+## 🔮 Multi-Language Architecture
+
+The framework is designed for easy expansion to other languages:
+
+
+### Directory Structure
+
+``` bash
 docs-sample-testing/
 ├── README.md                          # This documentation
 ├── config/
@@ -93,33 +163,6 @@ docs-sample-testing/
 └── test-runs/                         # Generated test reports (created on run)
 ```
 
-## 🔧 How It Works
-
-### 1. **Configuration**
-- **Global settings** in `config/framework_config.yaml` (timeouts, file patterns)
-- **Language-specific rules** in `config/languages/{lang}.yaml` (SDK patterns, imports)
-
-### 2. **Sample Extraction**
-- Parses MDX files to find code blocks by language tag (`\`\`\`python`, `\`\`\`javascript`, etc.)
-- Handles complex indentation from MDX formatting
-- Identifies sync vs async samples
-
-### 3. **Test Execution**
-- Creates temporary test scripts with proper imports and setup
-- Handles blocking operations (replaces `input()`, `while True:`, etc.)
-- Executes in isolated environment with SDK dependencies
-- Applies configurable timeouts
-
-### 4. **Validation & Reporting**
-- Validates imports against known SDK patterns
-- Checks for common migration issues
-- Generates detailed JSON and Markdown reports
-- Prioritizes issues by impact
-
-## 🔮 Multi-Language Architecture
-
-The framework is designed for easy expansion to other languages:
-
 ### Ready for Extension:
 - **JavaScript/TypeScript**: Config file ready, executor placeholder in place
 - **Go**: Config file ready, executor placeholder in place
@@ -131,43 +174,7 @@ The framework is designed for easy expansion to other languages:
 2. **Implement executor**: `languages/{lang}/executor.{ext}` following `base_executor.py` interface
 3. **Test**: Run `scripts/run_tests.py --language {lang}`
 
-## 📊 Reports Generated
-
-### JSON Report (`test-runs/{language}_test_report.json`)
-- Machine-readable results
-- Detailed error information
-- Execution times and metadata
-
-### Markdown Report (`test-runs/{language}_test_report.md`)
-- Human-readable summary
-- Organized by sample type
-- Prioritized recommendations
-
-## 🎯 Best Practices Learned
-
-1. **Start broad, then narrow**: Use semantic search to understand the codebase first
-2. **Manual validation works**: Systematic file-by-file fixes are highly effective
-3. **Framework complements manual work**: Use automation to identify issues, humans to fix them
-4. **Handle edge cases**: Blocking operations, mixed indentation, legacy patterns
-5. **Comprehensive testing**: Test complete workflows, not just syntax
-
 ## 📚 Documentation Files Preserved
 
 - `python-samples/python_samples_to_fix.md` - Complete record of Python SDK v5 migration work
 
-## 🐛 Troubleshooting
-
-### Missing Dependencies
-```bash
-pipenv install --dev  # Install all dependencies including dev ones
-```
-
-### SDK Not Found
-Make sure your `PYTHON_SDK_PATH` environment variable points to the correct directory containing the SDK source code.
-
-### Documentation Not Found
-Ensure your `DOCS_PATH` or `--docs-path` points to the directory containing MDX documentation files.
-
-### Permission Issues
-```bash
-chmod +x scripts/run_tests.py
