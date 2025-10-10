@@ -87,6 +87,9 @@ obj/
 *.pdb
 
 # Project specific
+# Local path configuration - each user customizes this
+local_paths.yaml
+
 # Uncomment these if you don't want to track sensitive configs
 # config/secrets.yaml
 # .env.local
